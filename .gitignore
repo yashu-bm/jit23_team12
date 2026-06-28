@@ -1,0 +1,26 @@
+# IntelliJ
+.idea/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Backend
+backend/target/
+
+# Python
+ai-microservice/.venv/
+ai-microservice/__pycache__/
+*.pyc
+
+# Logs
+logs/
+backend/logs/
+*.log
+
+# Uploads
+uploads/
+
+# OS
+.DS_Store
+Thumbs.db
