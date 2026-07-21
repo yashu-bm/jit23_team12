@@ -78,24 +78,29 @@ export default function Lawyers() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="text-center mb-6">
-        <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-purple-600 mb-4">
-          Find the Right Legal Expert
-        </h1>
-        <p className="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
-          Our AI-powered recommendation system matches you with the best lawyers based on your case type, location, budget, and ratings.
-        </p>
+    <div className="p-6 max-w-7xl mx-auto space-y-8 min-h-screen">
+      {/* Premium Header */}
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-primary-950 via-slate-900 to-brand-indigo text-white p-12 shadow-2xl text-center border border-slate-800">
+        <div className="absolute top-0 right-0 w-full h-full opacity-30 pointer-events-none">
+          <div className="absolute top-[-50%] left-[-20%] w-[60%] h-[200%] bg-gradient-to-r from-brand-purple to-transparent blur-[150px] rounded-full mix-blend-overlay"></div>
+        </div>
+        <div className="relative z-10 max-w-3xl mx-auto">
+          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4">
+            Find the Right <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-primary-400">Legal Expert</span>
+          </h1>
+          <p className="text-slate-300 text-lg font-medium opacity-90 leading-relaxed">
+            Our AI-powered recommendation system matches you with top-rated verified lawyers based on your specific case type, location, and budget.
+          </p>
+        </div>
       </div>
 
-      {/* Search Bar */}
-      <form onSubmit={handleSearch} className="space-y-4">
-        <div className="glass-panel rounded-full p-2 max-w-3xl mx-auto shadow-xl flex items-center bg-white/80 dark:bg-dark-card/80">
-          <div className="flex-1 flex items-center px-6 border-r border-gray-200 dark:border-gray-700">
-            <Briefcase className="text-gray-400 mr-3 flex-shrink-0" size={20} />
+      {/* Modern Search Bar */}
+      <form onSubmit={handleSearch} className="space-y-6 relative z-20 -mt-12 px-4 max-w-4xl mx-auto">
+        <div className="glass-panel p-2 rounded-full shadow-2xl flex flex-col md:flex-row items-center bg-white/90 dark:bg-slate-900/90 border border-white/50 dark:border-slate-700 backdrop-blur-xl">
+          <div className="w-full md:w-1/2 flex items-center px-6 py-2 border-b md:border-b-0 md:border-r border-gray-200 dark:border-slate-700">
+            <Briefcase className="text-primary-500 mr-3 flex-shrink-0" size={22} />
             <select
-              className="w-full bg-transparent outline-none py-3 text-gray-800 dark:text-gray-100 cursor-pointer"
+              className="w-full bg-transparent outline-none py-2 text-gray-800 dark:text-gray-100 cursor-pointer font-medium appearance-none"
               value={category}
               onChange={e => setCategory(e.target.value)}
             >
@@ -103,21 +108,21 @@ export default function Lawyers() {
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          <div className="flex-1 flex items-center px-6">
-            <MapPin className="text-gray-400 mr-3 flex-shrink-0" size={20} />
+          <div className="w-full md:w-1/2 flex items-center px-6 py-2">
+            <MapPin className="text-primary-500 mr-3 flex-shrink-0" size={22} />
             <input
               type="text"
               placeholder="Location (City / State)"
-              className="w-full bg-transparent outline-none py-3 text-gray-800 dark:text-gray-100"
+              className="w-full bg-transparent outline-none py-2 text-gray-800 dark:text-gray-100 font-medium placeholder-gray-400"
               value={location}
               onChange={e => setLocation(e.target.value)}
             />
           </div>
           <button
             type="submit"
-            className="bg-primary-600 hover:bg-primary-700 text-white rounded-full p-4 transition-transform hover:scale-105 shadow-lg shadow-primary-500/30"
+            className="w-full md:w-auto mt-2 md:mt-0 bg-primary-600 hover:bg-primary-700 text-white rounded-full p-4 md:px-8 flex items-center justify-center transition-transform hover:scale-105 shadow-glow"
           >
-            {loading ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Search size={24} />}
+            {loading ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <span className="flex items-center gap-2 font-bold"><Search size={20} /> <span className="md:hidden">Search</span></span>}
           </button>
         </div>
 
@@ -237,20 +242,31 @@ export default function Lawyers() {
             <button onClick={clearFilters} className="mt-4 text-primary-600 hover:underline text-sm">Clear filters and try again</button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {lawyers.map((lawyer, i) => (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(i * 0.05, 0.4) }}
                 key={lawyer.lawyer_id || lawyer.id}
-                className="glass-panel rounded-3xl p-6 hover:-translate-y-2 transition-transform duration-300 cursor-pointer group"
+                className="glass-card rounded-[2rem] p-6 hover:-translate-y-2 transition-all duration-300 cursor-pointer group flex flex-col h-full bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700"
               >
-                <div className="flex justify-between items-start mb-4">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-100 to-purple-100 dark:from-primary-900/60 dark:to-purple-900/60 flex items-center justify-center text-primary-700 dark:text-primary-300 text-2xl font-bold shadow-inner">
-                    {lawyer.name ? lawyer.name.charAt(0).toUpperCase() : 'L'}
+                <div className="flex justify-between items-start mb-5">
+                  <div className="relative group/avatar">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-2xl font-bold shadow-md border-4 border-white transition-transform duration-300 group-hover:scale-110 overflow-hidden relative z-10">
+                      <span className="text-white">{lawyer.name ? lawyer.name.charAt(0).toUpperCase() : 'L'}</span>
+                      {lawyer.profileImageUrl && (
+                        <img 
+                          src={lawyer.profileImageUrl} 
+                          alt={lawyer.name} 
+                          className="absolute inset-0 w-full h-full object-cover" 
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      )}
+                    </div>
+                    <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-primary-400 to-brand-purple opacity-0 group-hover:opacity-100 blur transition duration-300 z-0"></div>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
+                  <div className="flex flex-col items-end gap-1.5">
                     {lawyer.match_score && (
                       <div className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1">
                         <TrendingUp size={12} />
@@ -266,49 +282,52 @@ export default function Lawyers() {
                   </div>
                 </div>
 
-                <h3 className="text-lg font-bold mb-0.5 group-hover:text-primary-600 transition-colors">
+                <h3 className="text-xl font-extrabold mb-1 text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                   {lawyer.name || 'Advocate Profile'}
                 </h3>
-                <p className="text-primary-600 dark:text-primary-400 font-medium text-sm mb-1">
+                <p className="text-primary-600 dark:text-primary-400 font-bold text-sm mb-3">
                   {lawyer.specializationCategory || 'General Law'}
                 </p>
 
-                <div className="flex flex-wrap gap-2 mb-3 text-xs text-gray-500">
+                <div className="flex flex-wrap gap-2 mb-4 text-xs font-medium text-gray-500">
                   {lawyer.city && (
-                    <span className="flex items-center gap-1">
-                      <MapPin size={12} /> {lawyer.city}{lawyer.state ? `, ${lawyer.state}` : ''}
+                    <span className="flex items-center gap-1.5 bg-gray-100 dark:bg-slate-700/50 px-2.5 py-1 rounded-lg">
+                      <MapPin size={14} className="text-primary-500" /> {lawyer.city}{lawyer.state ? `, ${lawyer.state}` : ''}
                     </span>
                   )}
                   {lawyer.experienceYears && (
-                    <span className="flex items-center gap-1">
-                      <Award size={12} /> {lawyer.experienceYears} yrs exp
+                    <span className="flex items-center gap-1.5 bg-gray-100 dark:bg-slate-700/50 px-2.5 py-1 rounded-lg">
+                      <Award size={14} className="text-primary-500" /> {lawyer.experienceYears} yrs exp
                     </span>
                   )}
                 </div>
 
                 {lawyer.reason && (
-                  <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl text-xs text-gray-600 dark:text-gray-300 mb-4">
-                    <span className="font-semibold text-gray-800 dark:text-gray-200">AI Insight: </span>{lawyer.reason}
+                  <div className="bg-indigo-50/80 dark:bg-indigo-900/20 p-3.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 mb-4 border border-indigo-100 dark:border-indigo-800/50 shadow-sm flex-1">
+                    <span className="font-bold text-indigo-700 dark:text-indigo-400 block mb-1">AI Match Reason: </span>
+                    <span className="line-clamp-3">{lawyer.reason}</span>
                   </div>
                 )}
 
                 {lawyer.bio && !lawyer.reason && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 line-clamp-2">{lawyer.bio}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3 flex-1 leading-relaxed">{lawyer.bio}</p>
                 )}
+                {!lawyer.bio && !lawyer.reason && <div className="flex-1"></div>}
 
-                <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800">
-                  <div>
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-slate-700 mt-auto">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-0.5">Consultation Fee</span>
                     {lawyer.consultationFee ? (
-                      <span className="text-sm font-bold text-gray-800 dark:text-gray-200">₹{lawyer.consultationFee}<span className="font-normal text-xs text-gray-400">/consult</span></span>
+                      <span className="text-lg font-extrabold text-gray-900 dark:text-white">₹{lawyer.consultationFee}</span>
                     ) : (
-                      <span className="text-sm text-gray-400">Fee on request</span>
+                      <span className="text-sm font-semibold text-gray-500">Upon Request</span>
                     )}
                   </div>
                   <button
                     onClick={() => navigate(`/book-appointment?lawyerId=${lawyer.id}&lawyerName=${encodeURIComponent(lawyer.name || '')}`)}
-                    className="flex items-center gap-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-xl transition-colors shadow-md hover:shadow-primary-500/30"
+                    className="btn-premium px-5 py-2.5 text-sm flex items-center gap-1"
                   >
-                    Book <ChevronRight size={16} />
+                    Book Now <ChevronRight size={16} />
                   </button>
                 </div>
               </motion.div>

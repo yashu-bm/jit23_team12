@@ -16,7 +16,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/notices")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
+
 public class LegalNoticeController {
 
     private final LegalNoticeService legalNoticeService;

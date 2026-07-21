@@ -54,7 +54,8 @@ public class WebSecurityConfig {
             "/swagger-resources/**",
             "/webjars/**",
             "/ws/**",
-            "/actuator/health"
+            "/actuator/health",
+            "/uploads/**"
     };
 
     @Bean

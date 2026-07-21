@@ -1,17 +1,16 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Clock, CreditCard, CheckCircle, ChevronRight, User as UserIcon } from 'lucide-react';
-import useRazorpay from 'react-razorpay';
+import { Calendar, Clock, CheckCircle, ChevronRight, User as UserIcon } from 'lucide-react';
 import axios from 'axios';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
 import api from '../services/api';
+import SmartCalendar from '../components/SmartCalendar';
 
 const AppointmentBooking = () => {
   const { user } = useSelector(state => state.auth);
   const navigate = useNavigate();
-  const [Razorpay] = useRazorpay();
   const [step, setStep] = useState(1);
   const [selectedLawyer, setSelectedLawyer] = useState(null);
   const [appointmentDate, setAppointmentDate] = useState('');
@@ -20,6 +19,9 @@ const AppointmentBooking = () => {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [lawyersList, setLawyersList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [lawyerAvailabilities, setLawyerAvailabilities] = useState([]);
+  const [lawyerAppointments, setLawyerAppointments] = useState([]);
+  const [availableSlots, setAvailableSlots] = useState([]);
 
   React.useEffect(() => {
     const fetchLawyers = async () => {
@@ -45,9 +47,101 @@ const AppointmentBooking = () => {
     fetchLawyers();
   }, []);
 
-  const handleLawyerSelect = (lawyer) => {
+  const handleLawyerSelect = async (lawyer) => {
     setSelectedLawyer(lawyer);
+    try {
+      const [availRes, apptRes] = await Promise.all([
+        api.get(`availability/lawyer/${lawyer.id}`),
+        api.get(`appointments/lawyer/${lawyer.id}`)
+      ]);
+      setLawyerAvailabilities(availRes.data);
+      setLawyerAppointments(apptRes.data);
+    } catch (err) {
+      console.error("Failed to load lawyer schedule", err);
+    }
     setStep(2);
+  };
+
+  React.useEffect(() => {
+    if (appointmentDate && selectedLawyer) {
+      computeAvailableSlots(appointmentDate);
+    }
+  }, [appointmentDate, lawyerAvailabilities, lawyerAppointments]);
+
+  const computeAvailableSlots = (dateStr) => {
+    const selectedDate = new Date(dateStr);
+    const dayOfWeek = selectedDate.getDay() || 7; // 1=Mon...7=Sun
+    
+    let isExplicitlyUnavailable = false;
+    let availableRanges = [];
+
+    lawyerAvailabilities.forEach(avail => {
+      let matchesDate = false;
+      if (avail.date) {
+        if (avail.endDate) {
+          if (dateStr >= avail.date && dateStr <= avail.endDate) {
+            matchesDate = true;
+          }
+        } else if (avail.date === dateStr) {
+          matchesDate = true;
+        }
+      }
+      const matchesDay = avail.dayOfWeek && avail.dayOfWeek === dayOfWeek;
+      
+      if (matchesDate || matchesDay) {
+        if (!avail.isAvailable) {
+          isExplicitlyUnavailable = true;
+        } else if (avail.startTime && avail.endTime) {
+          availableRanges.push({ start: avail.startTime, end: avail.endTime });
+        }
+      }
+    });
+
+    if (isExplicitlyUnavailable) {
+      setAvailableSlots([]);
+      return;
+    }
+
+    if (availableRanges.length === 0 && lawyerAvailabilities.length > 0) {
+      setAvailableSlots([]);
+      return;
+    }
+
+    if (lawyerAvailabilities.length === 0) {
+      // Default 9 to 17 if no rules defined
+      availableRanges = [{ start: '09:00:00', end: '17:00:00' }];
+    }
+
+    // Generate hourly slots
+    let slots = [];
+    availableRanges.forEach(range => {
+      let currentHour = parseInt(range.start.split(':')[0]);
+      let endHour = parseInt(range.end.split(':')[0]);
+      
+      for (let h = currentHour; h < endHour; h++) {
+        const timeString = `${h.toString().padStart(2, '0')}:00`;
+        // Check if booked
+        const isBooked = lawyerAppointments.some(app => {
+          if (!['PENDING', 'CONFIRMED', 'PAID'].includes(app.status)) return false;
+          const appDateTime = new Date(app.appointmentDate);
+          return appDateTime.toISOString().split('T')[0] === dateStr && appDateTime.getHours() === h;
+        });
+        
+        // Skip past slots for today
+        const now = new Date();
+        const slotDate = new Date(`${dateStr}T${timeString}`);
+        if (slotDate > now && !isBooked) {
+          slots.push(timeString);
+        }
+      }
+    });
+    
+    // Sort and deduplicate slots
+    slots = [...new Set(slots)].sort();
+    setAvailableSlots(slots);
+    if (!slots.includes(appointmentTime)) {
+      setAppointmentTime('');
+    }
   };
 
   const handleTimeSelect = (e) => {
@@ -57,65 +151,23 @@ const AppointmentBooking = () => {
     }
   };
 
-  const handlePayment = async () => {
+  const handleBooking = async () => {
     setIsProcessing(true);
     try {
-      // 1. Create order on backend
-      const orderResponse = await api.post('payments/create-order', {
+      const dt = `${appointmentDate}T${appointmentTime}${appointmentTime.length === 5 ? ':00' : ''}`;
+
+      await api.post('appointments/book', {
         userId: user.id,
-        amount: selectedLawyer.consultationFee
+        lawyerId: selectedLawyer.id,
+        appointmentDate: dt
       });
-
-      const orderData = orderResponse.data;
-
-      // 2. Initialize Razorpay Checkout
-      const options = {
-        key: "rzp_test_T72Rltk1b0NClI", // Replace with real key
-        amount: orderData.amount * 100,
-        currency: "INR",
-        name: "Smart Legal Assistance",
-        description: `Consultation fee for ${selectedLawyer.name}`,
-        order_id: orderData.razorpayOrderId,
-        handler: async (response) => {
-          // 3. Verify payment on backend
-          await api.post('payments/verify', {
-            razorpayOrderId: response.razorpay_order_id,
-            razorpayPaymentId: response.razorpay_payment_id,
-            razorpaySignature: response.razorpay_signature
-          });
-          
-          // 4. Book appointment on backend
-          const dt = new Date(`${appointmentDate}T${appointmentTime}`).toISOString();
-          await api.post('appointments/book', {
-            userId: user.id,
-            lawyerId: selectedLawyer.id,
-            appointmentDate: dt
-          });
-          
-          setPaymentSuccess(true);
-          setStep(4);
-          setIsProcessing(false);
-        },
-        prefill: {
-          name: user.name || "User",
-          email: user.email || "user@example.com",
-          contact: "",
-        },
-        theme: {
-          color: "#4f46e5",
-        },
-      };
-
-      const rzp = new Razorpay(options);
-      rzp.on("payment.failed", function (response) {
-        alert("Payment Failed: " + response.error.description);
-        setIsProcessing(false);
-      });
-      rzp.open();
-
-    } catch (error) {
-      console.error("Payment flow error", error);
-      alert("Error initiating payment. Check if backend is running.");
+      
+      setPaymentSuccess(true);
+      setStep(4);
+    } catch (err) {
+      console.error("Booking error:", err);
+      alert("Failed to book appointment. Please try again.");
+    } finally {
       setIsProcessing(false);
     }
   };
@@ -170,10 +222,23 @@ const AppointmentBooking = () => {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
-            className="max-w-md mx-auto bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700"
+            className="max-w-4xl mx-auto bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700"
           >
             <h2 className="text-xl font-bold dark:text-white mb-6">Select Date & Time for {selectedLawyer.name}</h2>
-            <form onSubmit={handleTimeSelect} className="space-y-5">
+            
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold mb-4 dark:text-gray-200">Lawyer's Availability Calendar</h3>
+              <p className="text-sm text-gray-500 mb-4">Check the calendar below for the lawyer's schedule. Select an available date and time for this lawyer from the form below.</p>
+              <div className="h-[450px] w-full">
+                <SmartCalendar 
+                  appointments={lawyerAppointments}
+                  availabilities={lawyerAvailabilities}
+                  isLawyer={false}
+                />
+              </div>
+            </div>
+
+            <form onSubmit={handleTimeSelect} className="space-y-5 max-w-md mx-auto">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
                   <Calendar size={18} /> Date
@@ -191,12 +256,37 @@ const AppointmentBooking = () => {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
                   <Clock size={18} /> Time
                 </label>
+                {!appointmentDate ? (
+                  <p className="text-sm text-gray-500">Please select a date first.</p>
+                ) : availableSlots.length === 0 ? (
+                  <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm border border-red-200 dark:border-red-800">
+                    Lawyer is unavailable on this date. Please select another date.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-3">
+                    {availableSlots.map(time => (
+                      <button
+                        key={time}
+                        type="button"
+                        onClick={() => setAppointmentTime(time)}
+                        className={`py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                          appointmentTime === time
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-500'
+                        }`}
+                      >
+                        {time}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* Hidden input to ensure required validation passes only if a time is selected */}
                 <input 
-                  type="time" 
+                  type="text" 
                   required
                   value={appointmentTime}
-                  onChange={(e) => setAppointmentTime(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg p-3 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                  onChange={() => {}}
+                  className="w-0 h-0 opacity-0 absolute"
                 />
               </div>
               <div className="flex gap-4 pt-4">
@@ -215,7 +305,7 @@ const AppointmentBooking = () => {
             exit={{ opacity: 0, x: 20 }}
             className="max-w-md mx-auto bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 text-center"
           >
-            <h2 className="text-xl font-bold dark:text-white mb-6">Payment Summary</h2>
+            <h2 className="text-xl font-bold dark:text-white mb-6">Confirm Booking</h2>
             <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl mb-6 text-left space-y-3">
               <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-3">
                 <span className="text-gray-600 dark:text-gray-400">Consultation with</span>
@@ -229,17 +319,18 @@ const AppointmentBooking = () => {
                 <span className="text-gray-900 dark:text-white font-bold text-lg">Total Fee</span>
                 <span className="text-indigo-600 dark:text-indigo-400 font-bold text-xl">₹{selectedLawyer.consultationFee}</span>
               </div>
+              <p className="text-xs text-gray-500 mt-2">Note: Payment will be requested only after the lawyer accepts your appointment.</p>
             </div>
             
             <div className="flex gap-4">
               <button type="button" onClick={() => setStep(2)} className="w-1/3 py-3 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg font-medium">Back</button>
               <button 
-                onClick={handlePayment} 
+                onClick={handleBooking} 
                 disabled={isProcessing}
-                className="w-2/3 py-3 bg-[#0a2540] hover:bg-[#113255] text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                className="w-2/3 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
               >
-                <CreditCard size={18} />
-                {isProcessing ? 'Processing...' : 'Pay with Razorpay'}
+                <CheckCircle size={18} />
+                {isProcessing ? 'Processing...' : 'Confirm Request'}
               </button>
             </div>
           </motion.div>
@@ -257,7 +348,7 @@ const AppointmentBooking = () => {
             </div>
             <h2 className="text-2xl font-bold dark:text-white mb-2">Booking Confirmed!</h2>
             <p className="text-gray-600 dark:text-gray-400 mb-8">
-              Your appointment with {selectedLawyer.name} is confirmed for {appointmentDate}. You will receive an email shortly.
+              Your appointment request with {selectedLawyer.name} for {appointmentDate} has been sent. The lawyer will review it shortly. You will be notified when it is accepted to proceed with payment.
             </p>
             <button 
               onClick={() => navigate('/dashboard')}

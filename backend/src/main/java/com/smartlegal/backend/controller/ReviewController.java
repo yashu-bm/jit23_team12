@@ -9,6 +9,7 @@ import com.smartlegal.backend.repository.LawyerProfileRepository;
 import com.smartlegal.backend.repository.ReviewRepository;
 import com.smartlegal.backend.repository.UserRepository;
 import com.smartlegal.backend.service.AuditLogService;
+import com.smartlegal.backend.service.NotificationService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,11 +20,12 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/reviews")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
+
 public class ReviewController {
 
     private final ReviewRepository reviewRepository;
@@ -31,6 +33,7 @@ public class ReviewController {
     private final LawyerProfileRepository lawyerProfileRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+    private final NotificationService notificationService;
 
     @PostMapping
     public ResponseEntity<?> submitReview(@RequestBody Map<String, Object> payload, HttpServletRequest request) {
@@ -90,11 +93,39 @@ public class ReviewController {
 
         auditLogService.logActivity(user, "SUBMIT_REVIEW", "User reviewed lawyer ID: " + lawyerId + " with rating: " + rating, request);
 
+        // Notify Lawyer
+        notificationService.createAndSendNotification(
+                lawyerProfile.getUser(),
+                "New Review Received",
+                user.getFullName() + " left a " + rating + "-star review.",
+                "REVIEW",
+                "/lawyer-dashboard" // Or wherever lawyer sees reviews
+        );
+
+        appointment.setReviewedAt(LocalDateTime.now());
+        appointmentRepository.save(appointment);
+
         return ResponseEntity.ok(Map.of("message", "Review submitted successfully", "averageRating", avgRating));
     }
 
     @GetMapping("/lawyer/{lawyerId}")
-    public ResponseEntity<List<Review>> getLawyerReviews(@PathVariable Long lawyerId) {
-        return ResponseEntity.ok(reviewRepository.findByLawyerId(lawyerId));
+    public ResponseEntity<?> getLawyerReviews(@PathVariable Long lawyerId) {
+        List<Review> reviews = reviewRepository.findByLawyerId(lawyerId);
+        List<Map<String, Object>> enriched = reviews.stream().map(r -> {
+            Map<String, Object> map = new java.util.LinkedHashMap<>();
+            map.put("id", r.getId());
+            map.put("rating", r.getRating());
+            map.put("reviewText", r.getReviewText());
+            map.put("createdAt", r.getCreatedAt());
+            map.put("lawyerId", r.getLawyerId());
+            map.put("appointmentId", r.getAppointmentId());
+            // Fetch client name
+            userRepository.findById(r.getUserId()).ifPresent(u -> {
+                map.put("clientName", u.getFullName());
+                map.put("clientId", u.getId());
+            });
+            return map;
+        }).collect(java.util.stream.Collectors.toList());
+        return ResponseEntity.ok(enriched);
     }
 }

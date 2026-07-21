@@ -12,6 +12,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import ForgotPassword from './pages/ForgotPassword';
 import Profile from './pages/Profile';
 import LawyerDashboard from './pages/LawyerDashboard';
+import EmergencyLegalHelp from './pages/EmergencyLegalHelp';
+import LegalKnowledgeCenter from './pages/LegalKnowledgeCenter';
 import ChatbotWidget from './components/ChatbotWidget';
 
 import { logout } from './redux/authSlice';
@@ -63,6 +65,12 @@ function AppRoutes() {
           } />
           <Route path="/admin" element={
             isLoggedIn ? <AdminDashboard /> : <Navigate to="/login" />
+          } />
+          <Route path="/emergency" element={
+            isLoggedIn ? <EmergencyLegalHelp /> : <Navigate to="/login" />
+          } />
+          <Route path="/knowledge-center" element={
+            isLoggedIn ? <LegalKnowledgeCenter /> : <Navigate to="/login" />
           } />
         </Routes>
         {isLoggedIn && <ChatbotWidget />}

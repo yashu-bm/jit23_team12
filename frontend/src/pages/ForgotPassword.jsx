@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Key, ShieldCheck, ArrowRight, CheckCircle, ArrowLeft } from 'lucide-react';
 import axios from 'axios';
@@ -13,6 +13,15 @@ const ForgotPassword = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    let timer;
+    if (cooldown > 0) {
+      timer = setInterval(() => setCooldown((prev) => prev - 1), 1000);
+    }
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const handleRequestOtp = async (e) => {
     e.preventDefault();
@@ -23,6 +32,7 @@ const ForgotPassword = () => {
       const res = await axios.post('http://localhost:8080/api/auth/forgot-password', { email });
       setMessage(res.data.message);
       setStep(2);
+      setCooldown(30);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to request OTP. Please try again.');
     } finally {
@@ -41,6 +51,22 @@ const ForgotPassword = () => {
       setStep(3);
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid or expired OTP code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (cooldown > 0) return;
+    setLoading(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await axios.post('http://localhost:8080/api/auth/resend-otp', { email });
+      setMessage(res.data.message);
+      setCooldown(30);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to resend OTP.');
     } finally {
       setLoading(false);
     }
@@ -155,6 +181,19 @@ const ForgotPassword = () => {
                   </div>
 
                   {error && <div className="text-red-400 text-sm">{error}</div>}
+                  {message && <div className="text-green-400 text-sm">{message}</div>}
+
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-400">Didn't receive the code?</span>
+                    <button
+                      type="button"
+                      onClick={handleResendOtp}
+                      disabled={cooldown > 0 || loading}
+                      className="font-medium text-indigo-400 hover:text-indigo-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend OTP'}
+                    </button>
+                  </div>
 
                   <div className="flex gap-4">
                     <button

@@ -9,6 +9,8 @@ import com.smartlegal.backend.repository.LawyerEarningRepository;
 import com.smartlegal.backend.repository.LawyerProfileRepository;
 import com.smartlegal.backend.repository.PaymentRepository;
 import com.smartlegal.backend.repository.UserRepository;
+import com.smartlegal.backend.repository.AppointmentRepository;
+import com.smartlegal.backend.entity.Appointment;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
@@ -30,7 +32,9 @@ public class PaymentService {
     private final UserRepository userRepository;
     private final LawyerProfileRepository lawyerProfileRepository;
     private final LawyerEarningRepository lawyerEarningRepository;
+    private final AppointmentRepository appointmentRepository;
     private final EmailService emailService;
+    private final NotificationService notificationService;
 
     @Value("${razorpay.key-id}")
     private String keyId;
@@ -123,6 +127,15 @@ public class PaymentService {
                 log.error("Payment signature verification failed: {}", e.getMessage());
                 payment.setPaymentStatus("FAILED");
                 paymentRepository.save(payment);
+
+                notificationService.createAndSendNotification(
+                        payment.getUser(),
+                        "Payment Failed",
+                        "Your payment of ₹" + payment.getAmount() + " failed.",
+                        "PAYMENT",
+                        "/dashboard"
+                );
+
                 throw new RuntimeException("Payment verification failed. Invalid signature.");
             }
         }
@@ -131,6 +144,15 @@ public class PaymentService {
         payment.setRazorpaySignature(razorpaySignature);
         payment.setPaymentStatus("SUCCESS");
         Payment saved = paymentRepository.save(payment);
+
+        // Update Appointment status to PAID
+        if (payment.getAppointmentId() != null) {
+            appointmentRepository.findById(payment.getAppointmentId()).ifPresent(appointment -> {
+                appointment.setStatus("PAID");
+                appointment.setPaymentCompletedAt(LocalDateTime.now());
+                appointmentRepository.save(appointment);
+            });
+        }
 
         // Record lawyer earning
         recordLawyerEarning(saved);
@@ -149,6 +171,26 @@ public class PaymentService {
             );
         } catch (Exception e) {
             log.warn("Could not send payment confirmation email: {}", e.getMessage());
+        }
+
+        notificationService.createAndSendNotification(
+                payment.getUser(),
+                "Payment Successful",
+                "Your payment of ₹" + payment.getAmount() + " was completed successfully.",
+                "PAYMENT",
+                "/dashboard"
+        );
+
+        if (payment.getLawyerId() != null) {
+            userRepository.findById(payment.getLawyerId()).ifPresent(lawyer -> {
+                notificationService.createAndSendNotification(
+                        lawyer,
+                        "Payment Received",
+                        payment.getUser().getFullName() + " has completed the payment.",
+                        "PAYMENT",
+                        "/lawyer-dashboard"
+                );
+            });
         }
 
         return saved;

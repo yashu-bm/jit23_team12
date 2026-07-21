@@ -13,6 +13,7 @@ import com.smartlegal.backend.repository.RoleRepository;
 import com.smartlegal.backend.repository.UserRepository;
 import com.smartlegal.backend.security.JwtUtils;
 import com.smartlegal.backend.security.UserDetailsImpl;
+import com.smartlegal.backend.service.NotificationService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -49,6 +50,9 @@ public class AuthController {
     @Autowired
     JwtUtils jwtUtils;
 
+    @Autowired
+    NotificationService notificationService;
+
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
 
@@ -66,12 +70,23 @@ public class AuthController {
                 .map(item -> item.getAuthority())
                 .collect(Collectors.toList());
 
+        User user = userRepository.findByEmail(userDetails.getEmail()).get();
+
+        boolean isLawyer = roles.contains("ROLE_LAWYER");
+        notificationService.createAndSendNotification(
+                user,
+                isLawyer ? "Welcome back!" : "Login Successful",
+                isLawyer ? "Welcome back to your Lawyer Dashboard." : "Welcome back to Smart Legal Assistance.",
+                "SYSTEM",
+                isLawyer ? "/lawyer-dashboard" : "/dashboard"
+        );
+
         return ResponseEntity.ok(new JwtResponse(
                 jwt,
                 userDetails.getId(),
                 userDetails.getEmail(),
-                userRepository.findByEmail(userDetails.getEmail()).get().getFirstName(),
-                userRepository.findByEmail(userDetails.getEmail()).get().getLastName(),
+                user.getFirstName(),
+                user.getLastName(),
                 roles));
     }
 
@@ -95,22 +110,22 @@ public class AuthController {
 
         if (strRole == null) {
             userRole = roleRepository.findByName(ERole.ROLE_USER)
-                    .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                    .orElseGet(() -> roleRepository.save(new Role(ERole.ROLE_USER)));
         } else {
             switch (strRole.toLowerCase()) {
                 case "admin":
                     userRole = roleRepository.findByName(ERole.ROLE_ADMIN)
-                            .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                            .orElseGet(() -> roleRepository.save(new Role(ERole.ROLE_ADMIN)));
                     break;
 
                 case "lawyer":
                     userRole = roleRepository.findByName(ERole.ROLE_LAWYER)
-                            .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                            .orElseGet(() -> roleRepository.save(new Role(ERole.ROLE_LAWYER)));
                     break;
 
                 default:
                     userRole = roleRepository.findByName(ERole.ROLE_USER)
-                            .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                            .orElseGet(() -> roleRepository.save(new Role(ERole.ROLE_USER)));
                     break;
             }
         }
@@ -126,8 +141,17 @@ public class AuthController {
             // preventing the "detached entity passed to persist" Hibernate error.
             User managedUser = userRepository.getReferenceById(savedUser.getId());
             profile.setUser(managedUser);
+            profile.setIsApproved(true);
             lawyerProfileRepository.save(profile);
         }
+
+        notificationService.createAndSendNotification(
+                savedUser,
+                "Welcome to Smart Legal!",
+                "Your account has been created successfully.",
+                "SYSTEM",
+                "/dashboard"
+        );
 
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
     }

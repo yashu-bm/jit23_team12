@@ -24,6 +24,10 @@ class DocumentResponse(BaseModel):
     extracted_text: str
     summary: str
     overall_risk: str
+    confidence_score: str
+    missing_clauses: List[str]
+    recommendations: List[str]
+    ai_explanation: str
     clauses: List[ClauseAnalysis]
 
 
@@ -71,6 +75,10 @@ async def analyze_document(file: UploadFile = File(...)):
 
             clauses_data = {
                 "overall_risk": "Medium",
+                "confidence_score": "0.5",
+                "missing_clauses": ["Error parsing AI response."],
+                "recommendations": ["Error parsing AI response."],
+                "ai_explanation": "Error parsing AI response.",
                 "clauses": []
             }
 
@@ -86,12 +94,22 @@ async def analyze_document(file: UploadFile = File(...)):
                     reason=item.get("reason", "")
                 )
             )
+            
+        raw_missing = clauses_data.get("missing_clauses", ["None identified."])
+        missing_list = raw_missing if isinstance(raw_missing, list) else [raw_missing]
+        
+        raw_recs = clauses_data.get("recommendations", ["No specific recommendations."])
+        recs_list = raw_recs if isinstance(raw_recs, list) else [raw_recs]
 
         return DocumentResponse(
             filename=file.filename,
             extracted_text=extracted_text,
             summary=summary,
             overall_risk=clauses_data.get("overall_risk", "Medium"),
+            confidence_score=clauses_data.get("confidence_score", "0.90"),
+            missing_clauses=missing_list,
+            recommendations=recs_list,
+            ai_explanation=clauses_data.get("ai_explanation", "No explanation available."),
             clauses=clauses
         )
 

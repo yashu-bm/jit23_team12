@@ -51,14 +51,18 @@ export default function Register() {
         setTimeout(() => navigate('/login'), 2000);
       },
       (error) => {
-        const resMessage =
-          (error.response &&
-            error.response.data &&
-            error.response.data.message) ||
-          error.message ||
-          error.toString();
+        console.error("Registration error:", error);
+        
+        let resMessage = "Network Error: Unable to connect to the server.";
+        if (error.response && error.response.data) {
+          resMessage = error.response.data.message || error.response.data.error || error.response.data;
+        } else if (error.message && error.message !== "Network Error") {
+          resMessage = error.message;
+        } else if (error.toString() !== "Error: Network Error") {
+          resMessage = error.toString();
+        }
 
-        setMessage(resMessage);
+        setMessage(typeof resMessage === 'string' ? resMessage : "An unexpected error occurred.");
         setSuccessful(false);
         setLoading(false);
       }

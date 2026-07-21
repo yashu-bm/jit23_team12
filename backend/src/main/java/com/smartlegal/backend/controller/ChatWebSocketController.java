@@ -3,10 +3,12 @@ package com.smartlegal.backend.controller;
 import com.smartlegal.backend.dto.ChatMessageDto;
 import com.smartlegal.backend.entity.ChatMessage;
 import com.smartlegal.backend.entity.ChatSession;
+import com.smartlegal.backend.entity.ERole;
 import com.smartlegal.backend.entity.User;
 import com.smartlegal.backend.repository.ChatMessageRepository;
 import com.smartlegal.backend.repository.ChatSessionRepository;
 import com.smartlegal.backend.repository.UserRepository;
+import com.smartlegal.backend.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -24,6 +26,7 @@ public class ChatWebSocketController {
     private final ChatMessageRepository chatMessageRepository;
     private final UserRepository userRepository;
     private final ChatSessionRepository chatSessionRepository;
+    private final NotificationService notificationService;
 
     @MessageMapping("/chat.send")
     @Transactional
@@ -62,6 +65,19 @@ public class ChatWebSocketController {
                     String.valueOf(sender.getId()),
                     "/queue/messages",
                     savedMessage
+            );
+            
+            // Generate notification for receiver
+            boolean isReceiverLawyer = receiver.getRole() != null && receiver.getRole().getName() == ERole.ROLE_LAWYER;
+            String title = isReceiverLawyer ? "New client message" : "New message from lawyer";
+            String link = isReceiverLawyer ? "/lawyer-dashboard" : "/dashboard"; // Adjust based on frontend structure, usually chat opens in a modal or separate page
+
+            notificationService.createAndSendNotification(
+                    receiver,
+                    title,
+                    sender.getFullName() + " sent you a message.",
+                    "CHAT",
+                    link
             );
             
         } catch (Exception e) {

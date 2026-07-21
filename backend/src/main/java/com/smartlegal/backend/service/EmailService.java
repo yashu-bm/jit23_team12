@@ -27,13 +27,10 @@ public class EmailService {
             javaMailSender.send(message);
             log.info("Email sent successfully to {}", to);
         } catch (Exception e) {
-            log.error("Failed to send email to {} via SMTP. Falling back to console logger.", to);
-            System.out.println("\n=================== [SMTP FALLBACK EMAIL LOGGER] ===================");
-            System.out.println("FROM: " + fromEmail);
-            System.out.println("TO: " + to);
-            System.out.println("SUBJECT: " + subject);
-            System.out.println("CONTENT:\n" + text);
-            System.out.println("===================================================================\n");
+            log.error("Failed to send email to {} via SMTP. Exception:", to, e);
+            throw new RuntimeException("Email delivery failed: " + e.getMessage(), e);
         }
     }
 }
+
+

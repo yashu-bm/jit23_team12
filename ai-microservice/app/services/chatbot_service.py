@@ -123,6 +123,10 @@ Return exactly in this format:
 
 {{
   "overall_risk":"Medium",
+  "confidence_score":"0.92",
+  "missing_clauses":["Termination", "Dispute Resolution", "Force Majeure"],
+  "recommendations":["Add a termination clause allowing 30 days notice.", "Specify jurisdiction for disputes."],
+  "ai_explanation":"A simple plain-language explanation of what this document is and its main implications.",
   "clauses":[
     {{
       "clause_type":"Termination",

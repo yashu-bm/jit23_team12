@@ -17,7 +17,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/payments")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
+
 public class PaymentController {
 
     private final PaymentService paymentService;

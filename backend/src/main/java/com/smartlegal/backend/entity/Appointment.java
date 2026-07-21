@@ -61,4 +61,21 @@ public class Appointment {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+
+
+    @Column(name = "accepted_at")
+    private LocalDateTime acceptedAt;
+
+    @Column(name = "payment_completed_at")
+    private LocalDateTime paymentCompletedAt;
+
+    @Column(name = "chat_started_at")
+    private LocalDateTime chatStartedAt;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
 }

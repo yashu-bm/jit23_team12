@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.time.LocalDateTime;
 
@@ -23,10 +24,12 @@ public class ChatSession {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnoreProperties({"password", "role", "isActive", "isEmailVerified", "createdAt", "updatedAt", "profileImageUrl"})
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lawyer_id", nullable = false)
+    @JsonIgnoreProperties({"password", "role", "isActive", "isEmailVerified", "createdAt", "updatedAt", "profileImageUrl"})
     private User lawyer;
 
     @CreationTimestamp

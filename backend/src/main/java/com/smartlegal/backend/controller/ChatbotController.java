@@ -1,12 +1,11 @@
 package com.smartlegal.backend.controller;
 
+import com.smartlegal.backend.service.GeminiService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
 
@@ -17,22 +16,26 @@ public class ChatbotController {
     private static final Logger log = LoggerFactory.getLogger(ChatbotController.class);
 
     @Autowired
-    private RestTemplate restTemplate;
-
-    @Value("${ai.service.url:http://localhost:8000}")
-    private String aiServiceBaseUrl;
+    private GeminiService geminiService;
 
     @PostMapping("/chat")
     public ResponseEntity<?> chat(@RequestBody Map<String, Object> payload) {
         try {
-            String aiUrl = aiServiceBaseUrl.replaceAll("/$", "") + "/api/v1/chatbot/chat";
-            log.info("Proxying chatbot request to: {}", aiUrl);
+            if (!geminiService.isConfigured()) {
+                return ResponseEntity.badRequest().body(Map.of("response", "AI service is not configured. Please configure the AI API key."));
+            }
+
+            String message = (String) payload.getOrDefault("message", "");
+            log.info("Processing generic chatbot request natively");
             
-            ResponseEntity<Map> response = restTemplate.postForEntity(aiUrl, payload, Map.class);
-            return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
+            String prompt = "You are a helpful and knowledgeable legal assistant. Answer the user's question clearly and concisely.\n\n" +
+                            "User: " + message;
+            
+            String aiResponse = geminiService.generateContent(prompt, null, null, false);
+            return ResponseEntity.ok(Map.of("response", aiResponse));
         } catch (Exception e) {
-            log.error("Chatbot proxy failed: {}", e.getMessage(), e);
-            return ResponseEntity.badRequest().body(Map.of("response", "Error connecting to AI service"));
+            log.error("Chatbot failed: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of("response", "AI chat failed: " + e.getMessage()));
         }
     }
 }

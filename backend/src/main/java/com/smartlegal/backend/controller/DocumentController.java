@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
+import org.springframework.http.HttpHeaders;
 
 import java.util.HashMap;
 import java.util.List;
@@ -90,6 +92,49 @@ public class DocumentController {
         }
     }
 
+    /**
+     * POST /api/documents/{id}/chat
+     * Chat with the uploaded document context.
+     */
+    @PostMapping("/{id}/chat")
+    public ResponseEntity<?> chatWithDocument(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        try {
+            String email = SecurityContextHolder.getContext().getAuthentication().getName();
+            String question = payload.get("question");
+            if (question == null || question.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Question is required"));
+            }
+            String answer = documentService.chatWithDocument(id, email, question);
+            return ResponseEntity.ok(Map.of("answer", answer));
+        } catch (Exception e) {
+            log.error("Chat failed for document id={}: {}", id, e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of("message", "AI chat failed: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * GET /api/documents/{id}/download
+     * Downloads the AI Risk Report as a PDF.
+     */
+    @GetMapping("/{id}/download")
+    public ResponseEntity<byte[]> downloadReportPdf(@PathVariable Long id) {
+        try {
+            String email = SecurityContextHolder.getContext().getAuthentication().getName();
+            byte[] pdfBytes = documentService.generateReportPdf(id, email);
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", "RiskReport_" + id + ".pdf");
+            
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(pdfBytes);
+        } catch (Exception e) {
+            log.error("PDF generation failed for document id={}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(500).body(("Failed to generate PDF: " + e.getMessage()).getBytes());
+        }
+    }
+
     private Map<String, Object> buildDocumentMap(LegalDocument doc) {
         Map<String, Object> map = new HashMap<>();
         map.put("id", doc.getId());
@@ -110,6 +155,9 @@ public class DocumentController {
         map.put("confidenceScore", report.getConfidenceScore());
         map.put("simpleSummary", report.getSimpleSummary());
         map.put("createdAt", report.getCreatedAt());
+        map.put("missingClauses", report.getMissingClauses());
+        map.put("recommendations", report.getRecommendations());
+        map.put("aiExplanation", report.getAiExplanation());
         
         if (report.getDocument() != null) {
             map.put("document", buildDocumentMap(report.getDocument()));

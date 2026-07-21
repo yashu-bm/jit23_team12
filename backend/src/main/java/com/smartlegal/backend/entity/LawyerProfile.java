@@ -60,6 +60,9 @@ public class LawyerProfile {
     @Column(columnDefinition = "TEXT")
     private String bio;
 
+    @Column(name = "profile_image_url")
+    private String profileImageUrl;
+
     @Column(name = "success_rate")
     private BigDecimal successRate;
 

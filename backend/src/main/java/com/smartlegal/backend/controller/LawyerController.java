@@ -16,16 +16,24 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.springframework.web.multipart.MultipartFile;
+import com.smartlegal.backend.util.ImageUtils;
+import org.springframework.beans.factory.annotation.Value;
+import com.smartlegal.backend.service.NotificationService;
 
-@CrossOrigin(origins = "*", maxAge = 3600)
+
 @RestController
 @RequestMapping("/api/lawyers")
 public class LawyerController {
@@ -48,9 +56,20 @@ public class LawyerController {
     @Autowired
     private AuditLogService auditLogService;
 
-    private final String AI_RECOMMEND_URL = "http://localhost:8000/api/v1/recommend";
+    @Autowired
+    private NotificationService notificationService;
+
+    @Value("${upload.path.lawyer:uploads/profile/}")
+    private String lawyerUploadPath;
+
+    @Autowired
+    private com.smartlegal.backend.service.GeminiService geminiService;
+    
+    @Autowired
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @GetMapping("/search")
+    @Transactional(readOnly = true)
     public ResponseEntity<?> searchLawyers(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String location,
@@ -60,8 +79,7 @@ public class LawyerController {
             @RequestParam(required = false) Double minRating) {
 
         // Fetch all approved lawyers and apply filters
-        List<LawyerProfile> allLawyers = lawyerProfileRepository.findAll().stream()
-                .filter(p -> p.getIsApproved() != null && p.getIsApproved())
+        List<LawyerProfile> allLawyers = lawyerProfileRepository.findByIsApprovedTrue().stream()
                 .filter(p -> category == null || category.trim().isEmpty() || 
                         (p.getSpecializationCategory() != null && p.getSpecializationCategory().getName().equalsIgnoreCase(category)))
                 .filter(p -> location == null || location.trim().isEmpty() || 
@@ -73,67 +91,69 @@ public class LawyerController {
                 .filter(p -> minRating == null || (p.getAverageRating() != null && p.getAverageRating().doubleValue() >= minRating))
                 .collect(Collectors.toList());
 
-        // For advanced recommendation, we can call the AI Microservice
+        // For advanced recommendation, we can call Gemini directly
         if (category != null && location != null && !category.trim().isEmpty() && !location.trim().isEmpty()) {
-            RestTemplate restTemplate = new RestTemplate();
-            Map<String, Object> request = new HashMap<>();
-            request.put("category", category);
-            request.put("location", location);
-            if (maxFee != null) {
-                request.put("max_fee", maxFee.doubleValue());
-            }
+            if (geminiService.isConfigured()) {
+                try {
+                    List<Map<String, Object>> candidates = allLawyers.stream().map(lawyer -> {
+                        Map<String, Object> map = new HashMap<>();
+                        map.put("id", lawyer.getId());
+                        map.put("name", lawyer.getUser().getFullName());
+                        map.put("experienceYears", lawyer.getExperienceYears());
+                        map.put("consultationFee", lawyer.getConsultationFee());
+                        map.put("averageRating", lawyer.getAverageRating());
+                        map.put("bio", lawyer.getBio());
+                        return map;
+                    }).collect(Collectors.toList());
 
-            // Provide candidates for the AI to rank
-            List<Map<String, Object>> candidates = allLawyers.stream().map(lawyer -> {
-                Map<String, Object> map = new HashMap<>();
-                map.put("id", lawyer.getId());
-                map.put("name", lawyer.getUser().getFullName());
-                map.put("experienceYears", lawyer.getExperienceYears());
-                map.put("consultationFee", lawyer.getConsultationFee());
-                map.put("averageRating", lawyer.getAverageRating());
-                map.put("bio", lawyer.getBio());
-                return map;
-            }).collect(Collectors.toList());
-            
-            request.put("candidates", candidates);
+                    String prompt = "You are an AI lawyer recommender. Rank the following lawyers for a client needing help with '" + category + "' in '" + location + "'.\n" +
+                                    "Return a STRICT JSON response containing an array of recommendations. Format: {\"recommendations\": [{\"lawyer_id\": 1, \"match_score\": 0.95, \"reason\": \"Excellent match...\"}]}.\n" +
+                                    "Candidates:\n" + objectMapper.writeValueAsString(candidates);
 
-            try {
-                // Call AI Service for recommendations matching
-                ResponseEntity<Map> aiResponse = restTemplate.postForEntity(AI_RECOMMEND_URL, request, Map.class);
-                List<Map<String, Object>> aiRecs = (List<Map<String, Object>>) aiResponse.getBody().get("recommendations");
+                    String aiResponseJson = geminiService.generateContent(prompt, null, null, true);
+                    com.fasterxml.jackson.databind.JsonNode rootNode = objectMapper.readTree(aiResponseJson);
+                    com.fasterxml.jackson.databind.JsonNode recsNode = rootNode.path("recommendations");
 
-                // Merge AI recommendations with DB records
-                List<Map<String, Object>> merged = allLawyers.stream().map(lawyer -> {
-                    Map<String, Object> map = new HashMap<>();
-                    map.put("id", lawyer.getId());
-                    map.put("name", lawyer.getUser().getFullName());
-                    map.put("city", lawyer.getCity());
-                    map.put("state", lawyer.getState());
-                    map.put("experienceYears", lawyer.getExperienceYears());
-                    map.put("consultationFee", lawyer.getConsultationFee());
-                    map.put("averageRating", lawyer.getAverageRating());
-                    map.put("totalReviews", lawyer.getTotalReviews());
-                    map.put("bio", lawyer.getBio());
-                    map.put("specializationCategory", lawyer.getSpecializationCategory() != null ? lawyer.getSpecializationCategory().getName() : "General");
-                    
-                    // Look up AI score and reason
-                    Optional<Map<String, Object>> recOpt = aiRecs.stream()
-                            .filter(r -> Long.valueOf(r.get("lawyer_id").toString()).equals(lawyer.getId()))
-                            .findFirst();
+                    List<Map<String, Object>> merged = allLawyers.stream().map(lawyer -> {
+                        Map<String, Object> map = new HashMap<>();
+                        map.put("id", lawyer.getId());
+                        map.put("name", lawyer.getUser().getFullName());
+                        map.put("city", lawyer.getCity());
+                        map.put("state", lawyer.getState());
+                        map.put("experienceYears", lawyer.getExperienceYears());
+                        map.put("consultationFee", lawyer.getConsultationFee());
+                        map.put("averageRating", lawyer.getAverageRating());
+                        map.put("totalReviews", lawyer.getTotalReviews());
+                        map.put("bio", lawyer.getBio());
+                        map.put("profileImageUrl", lawyer.getProfileImageUrl());
+                        map.put("specializationCategory", lawyer.getSpecializationCategory() != null ? lawyer.getSpecializationCategory().getName() : "General");
+                        
+                        double matchScore = 0.70;
+                        String reason = "Approved lawyer in matching category.";
 
-                    if (recOpt.isPresent()) {
-                        map.put("match_score", recOpt.get().get("match_score"));
-                        map.put("reason", recOpt.get().get("reason"));
-                    } else {
-                        map.put("match_score", 0.70); // default
-                        map.put("reason", "Approved lawyer in matching category.");
-                    }
-                    return map;
-                }).collect(Collectors.toList());
+                        if (recsNode.isArray()) {
+                            for (com.fasterxml.jackson.databind.JsonNode r : recsNode) {
+                                if (r.path("lawyer_id").asLong() == lawyer.getId()) {
+                                    matchScore = r.path("match_score").asDouble();
+                                    reason = r.path("reason").asText();
+                                    break;
+                                }
+                            }
+                        }
 
-                return ResponseEntity.ok(merged);
-            } catch (Exception e) {
-                e.printStackTrace();
+                        map.put("match_score", matchScore);
+                        map.put("reason", reason);
+                        return map;
+                    }).collect(Collectors.toList());
+
+                    // Sort by match_score descending
+                    merged.sort((a, b) -> Double.compare((Double) b.get("match_score"), (Double) a.get("match_score")));
+
+                    return ResponseEntity.ok(merged);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    // Fallback to default if AI fails
+                }
             }
         }
 
@@ -149,6 +169,7 @@ public class LawyerController {
             map.put("averageRating", lawyer.getAverageRating());
             map.put("totalReviews", lawyer.getTotalReviews());
             map.put("bio", lawyer.getBio());
+            map.put("profileImageUrl", lawyer.getProfileImageUrl());
             map.put("specializationCategory", lawyer.getSpecializationCategory() != null ? lawyer.getSpecializationCategory().getName() : "General");
             return map;
         }).collect(Collectors.toList());
@@ -224,6 +245,73 @@ public class LawyerController {
         auditLogService.logActivity(user, "UPDATE_LAWYER_PROFILE", "Lawyer updated professional details", request);
 
         return ResponseEntity.ok(saved);
+    }
+
+    @PostMapping(value = "/profile/upload-photo", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> uploadPhoto(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        LawyerProfile profile = lawyerProfileRepository.findById(user.getId())
+                .orElseThrow(() -> new RuntimeException("Lawyer profile not found"));
+
+        if (file.getSize() > 5 * 1024 * 1024) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Image size must be less than 5 MB."));
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || (!contentType.equals("image/jpeg") && !contentType.equals("image/png") && !contentType.equals("image/jpg"))) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Only JPG, JPEG, and PNG files are allowed."));
+        }
+
+        try {
+            Path uploadDirPath = Paths.get(lawyerUploadPath);
+            if (!Files.exists(uploadDirPath)) {
+                Files.createDirectories(uploadDirPath);
+            }
+
+            byte[] processedImage = ImageUtils.processProfileImage(file);
+            String fileName = "lawyer_" + user.getId() + "_" + System.currentTimeMillis() + ".jpg";
+            Path filePath = Paths.get(lawyerUploadPath, fileName);
+            System.out.println("Saving lawyer profile photo to absolute path: " + filePath.toAbsolutePath());
+            Files.write(filePath, processedImage);
+
+            String photoUrl = "http://localhost:8080/uploads/profile/" + fileName;
+            profile.setProfileImageUrl(photoUrl);
+            lawyerProfileRepository.save(profile);
+
+            auditLogService.logActivity(user, "UPDATE_LAWYER_PHOTO", "Lawyer updated professional photo", request);
+
+            return ResponseEntity.ok(Map.of("profileImageUrl", photoUrl, "message", "Profile photo updated successfully."));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Failed to upload photo: " + e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/profile/photo")
+    public ResponseEntity<?> deletePhoto(HttpServletRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        LawyerProfile profile = lawyerProfileRepository.findById(user.getId())
+                .orElseThrow(() -> new RuntimeException("Lawyer profile not found"));
+
+        if (profile.getProfileImageUrl() != null) {
+            try {
+                String url = profile.getProfileImageUrl();
+                String fileName = url.substring(url.lastIndexOf("/") + 1);
+                Path filePath = Paths.get(lawyerUploadPath + fileName);
+                Files.deleteIfExists(filePath);
+            } catch (Exception e) {
+                // Ignore file not found
+            }
+            profile.setProfileImageUrl(null);
+            lawyerProfileRepository.save(profile);
+            auditLogService.logActivity(user, "DELETE_LAWYER_PHOTO", "Lawyer deleted professional photo", request);
+        }
+
+        return ResponseEntity.ok(Map.of("message", "Photo removed successfully."));
     }
 
     @GetMapping("/earnings")

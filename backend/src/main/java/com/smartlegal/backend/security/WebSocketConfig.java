@@ -96,15 +96,20 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         String email = jwtUtils.getUserNameFromJwtToken(token);
                         try {
                             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+                            
+                            // We use the user's ID as the Principal so that Principal.getName() returns the ID.
+                            // This matches messagingTemplate.convertAndSendToUser(userId, ...) exactly.
+                            String principalName = String.valueOf(((UserDetailsImpl) userDetails).getId());
+                            
                             UsernamePasswordAuthenticationToken authentication =
                                     new UsernamePasswordAuthenticationToken(
-                                            userDetails,
+                                            principalName,
                                             null,
                                             userDetails.getAuthorities()
                                     );
                             SecurityContextHolder.getContext().setAuthentication(authentication);
                             accessor.setUser(authentication);
-                            logger.debug("WebSocket STOMP authenticated user: {}", email);
+                            logger.debug("WebSocket STOMP authenticated user with ID: {}", principalName);
                         } catch (Exception e) {
                             logger.warn("WebSocket STOMP authentication failed for {}: {}", email, e.getMessage());
                         }

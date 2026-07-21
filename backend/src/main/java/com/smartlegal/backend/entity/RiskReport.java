@@ -47,6 +47,15 @@ public class RiskReport {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "missing_clauses", columnDefinition = "LONGTEXT")
+    private String missingClauses;
+
+    @Column(name = "recommendations", columnDefinition = "LONGTEXT")
+    private String recommendations;
+
+    @Column(name = "ai_explanation", columnDefinition = "LONGTEXT")
+    private String aiExplanation;
+
     /**
      * List of risky clauses extracted by the AI.
      * CascadeType.ALL ensures clauses are persisted/deleted with the report.

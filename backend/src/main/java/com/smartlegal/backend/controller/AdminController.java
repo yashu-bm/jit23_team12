@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
+
 public class AdminController {
 
     private final UserRepository userRepository;
@@ -24,6 +24,9 @@ public class AdminController {
     private final AppointmentRepository appointmentRepository;
     private final PaymentRepository paymentRepository;
     private final DocumentRepository documentRepository;
+    private final AuditLogRepository auditLogRepository;
+    private final ReviewRepository reviewRepository;
+    private final com.smartlegal.backend.service.AdminReportService adminReportService;
 
     // ── Dashboard Stats ──────────────────────────────────────────
     @GetMapping("/dashboard/stats")
@@ -47,6 +50,11 @@ public class AdminController {
         long pendingAppointments = appointmentRepository.findAll().stream()
                 .filter(a -> "PENDING".equalsIgnoreCase(a.getStatus())).count();
 
+        long pendingEmergencyRequests = 0; // Emergency feature removed
+
+        long pendingLawyerApprovals = lawyerProfileRepository.findAll().stream()
+                .filter(l -> !Boolean.TRUE.equals(l.getIsApproved())).count();
+
         stats.put("totalUsers", totalUsers);
         stats.put("totalLawyers", totalLawyers);
         stats.put("totalAppointments", totalAppointments);
@@ -54,6 +62,8 @@ public class AdminController {
         stats.put("totalRevenue", totalRevenue);
         stats.put("completedAppointments", completedAppointments);
         stats.put("pendingAppointments", pendingAppointments);
+        stats.put("pendingEmergencyRequests", pendingEmergencyRequests);
+        stats.put("pendingLawyerApprovals", pendingLawyerApprovals);
         stats.put("totalPayments", allPayments.size());
 
         return ResponseEntity.ok(stats);
@@ -215,5 +225,57 @@ public class AdminController {
                         .distinct()
                         .collect(Collectors.toList())
         );
+    }
+
+    // ── Audit Logs ────────────────────────────────────────────────
+    @GetMapping("/audit-logs")
+    public ResponseEntity<List<AuditLog>> getAuditLogs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        
+        List<AuditLog> logs = auditLogRepository.findAll(
+                PageRequest.of(page, size, Sort.by("createdAt").descending())
+        ).getContent();
+        
+        return ResponseEntity.ok(logs);
+    }
+
+    // ── Reviews ───────────────────────────────────────────────────
+    @GetMapping("/reviews")
+    public ResponseEntity<List<Map<String, Object>>> getAllReviews(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        
+        List<Review> reviews = reviewRepository.findAll(
+                PageRequest.of(page, size, Sort.by("createdAt").descending())
+        ).getContent();
+        
+        List<Map<String, Object>> result = reviews.stream().map(r -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", r.getId());
+            map.put("rating", r.getRating());
+            map.put("reviewText", r.getReviewText());
+            map.put("createdAt", r.getCreatedAt());
+            map.put("lawyerId", r.getLawyerId());
+            map.put("userId", r.getUserId());
+            return map;
+        }).collect(Collectors.toList());
+        
+        return ResponseEntity.ok(result);
+    }
+
+    @DeleteMapping("/reviews/{id}")
+    public ResponseEntity<Map<String, String>> deleteReview(@PathVariable Long id) {
+        reviewRepository.deleteById(id);
+        return ResponseEntity.ok(Map.of("message", "Review deleted successfully"));
+    }
+
+    // ── Reports ───────────────────────────────────────────────────
+    @GetMapping(value = "/report/pdf", produces = "application/pdf")
+    public ResponseEntity<byte[]> getPdfReport() {
+        byte[] pdfBytes = adminReportService.generateSystemReportPdf();
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=admin-report.pdf")
+                .body(pdfBytes);
     }
 }
