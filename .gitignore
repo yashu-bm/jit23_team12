@@ -1,0 +1,60 @@
+# Secrets
+.env
+*.env
+application-local.properties
+application-secret.properties
+
+# Dependencies
+node_modules/
+target/
+
+# Build files
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log
+logs/
+
+# Uploaded/generated files
+uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project debug/test files
+backend/ApiCheck.java
+backend/DbCheck.java
+backend/DbCheck.class
+backend/src/main/java/com/smartlegal/backend/controller/TestController.java
+test_click.py
+
+# Runtime logs
+backend/logs/
+*.log
+
+# Frontend build
+frontend/dist/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local application secrets
+backend/src/main/resources/application.properties
+
+# Test artifacts
+backend/temp.pdf
+backend/test.doc
+backend/test.docx
+backend/test.jpg
+backend/test.pdf
+backend/test.png
+backend/test.txt
+test-appointment-debug.js
+test-appointment-fetch.js
