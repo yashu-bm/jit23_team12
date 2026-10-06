@@ -1,0 +1,46 @@
+2026-07-03T01:21:23.800+05:30  INFO 31508 --- [smart-legal-backend] [main] c.s.b.SmartLegalBackendApplication       : Starting SmartLegalBackendApplication using Java 23.0.2 with PID 31508 (C:\Users\yashu\OneDrive\Desktop\Smart-Legal-Assistance-System\backend\target\classes started by yashu in C:\Users\yashu\OneDrive\Desktop\Smart-Legal-Assistance-System)
+2026-07-03T01:21:23.880+05:30 DEBUG 31508 --- [smart-legal-backend] [main] c.s.b.SmartLegalBackendApplication       : Running with Spring Boot v3.2.4, Spring v6.1.5
+2026-07-03T01:21:23.891+05:30  INFO 31508 --- [smart-legal-backend] [main] c.s.b.SmartLegalBackendApplication       : No active profile set, falling back to 1 default profile: "default"
+2026-07-03T01:21:29.067+05:30  INFO 31508 --- [smart-legal-backend] [main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-07-03T01:21:29.525+05:30  INFO 31508 --- [smart-legal-backend] [main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 423 ms. Found 15 JPA repository interfaces.
+2026-07-03T01:21:33.191+05:30  INFO 31508 --- [smart-legal-backend] [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2026-07-03T01:21:33.226+05:30  INFO 31508 --- [smart-legal-backend] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-07-03T01:21:33.227+05:30  INFO 31508 --- [smart-legal-backend] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.19]
+2026-07-03T01:21:33.467+05:30  INFO 31508 --- [smart-legal-backend] [main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-07-03T01:21:33.470+05:30  INFO 31508 --- [smart-legal-backend] [main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 9245 ms
+2026-07-03T01:21:34.637+05:30  INFO 31508 --- [smart-legal-backend] [main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-07-03T01:21:35.020+05:30  INFO 31508 --- [smart-legal-backend] [main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-07-03T01:21:35.182+05:30  INFO 31508 --- [smart-legal-backend] [main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-07-03T01:21:35.929+05:30  INFO 31508 --- [smart-legal-backend] [main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-07-03T01:21:35.977+05:30  INFO 31508 --- [smart-legal-backend] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-07-03T01:21:36.553+05:30  INFO 31508 --- [smart-legal-backend] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@dbda472
+2026-07-03T01:21:36.556+05:30  INFO 31508 --- [smart-legal-backend] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-07-03T01:21:36.765+05:30  WARN 31508 --- [smart-legal-backend] [main] org.hibernate.orm.deprecation            : HHH90000025: MySQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-07-03T01:21:39.425+05:30  INFO 31508 --- [smart-legal-backend] [main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-07-03T01:21:40.068+05:30  INFO 31508 --- [smart-legal-backend] [main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-07-03T01:21:40.981+05:30 DEBUG 31508 --- [smart-legal-backend] [main] c.s.b.security.JwtAuthenticationFilter   : Filter 'jwtAuthenticationFilter' configured for use
+2026-07-03T01:21:41.190+05:30  INFO 31508 --- [smart-legal-backend] [main] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-07-03T01:21:45.200+05:30  INFO 31508 --- [smart-legal-backend] [main] c.s.backend.service.PaymentService       : Razorpay client initialized successfully.
+2026-07-03T01:21:47.895+05:30  INFO 31508 --- [smart-legal-backend] [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 3 endpoint(s) beneath base path '/actuator'
+2026-07-03T01:21:49.138+05:30  WARN 31508 --- [smart-legal-backend] [main] ion$DefaultTemplateResolverConfiguration : Cannot find template location: classpath:/templates/ (please add some templates, check your Thymeleaf configuration, or set spring.thymeleaf.check-template-location=false)
+2026-07-03T01:21:50.666+05:30  WARN 31508 --- [smart-legal-backend] [main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'
+2026-07-03T01:21:50.680+05:30  INFO 31508 --- [smart-legal-backend] [main] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-07-03T01:21:50.724+05:30  INFO 31508 --- [smart-legal-backend] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-07-03T01:21:50.798+05:30  INFO 31508 --- [smart-legal-backend] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-07-03T01:21:50.946+05:30  INFO 31508 --- [smart-legal-backend] [main] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-07-03T01:21:51.173+05:30 ERROR 31508 --- [smart-legal-backend] [main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Web server failed to start. Port 8080 was already in use.
+
+Action:
+
+Identify and stop the process that's listening on port 8080 or configure this application to listen on another port.
+
